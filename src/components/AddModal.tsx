@@ -121,21 +121,27 @@ export function AddModal({ isOpen, onClose, type, parentType, onSubmit }: AddMod
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             onClick={onClose}
           />
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border rounded-t-3xl z-50 p-6 pb-safe max-h-[85vh] overflow-y-auto"
-          >
-            <div className="flex justify-between items-center mb-6 sticky top-0 bg-surface z-10 pb-2 border-b border-border">
-              <h2 className="text-xl font-bold text-text1">{getTitleText()}</h2>
-              <button onClick={onClose} className="p-2 rounded-full bg-card text-text2 hover:text-text1">
-                <X size={20} />
-              </button>
-            </div>
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="w-full max-w-lg rounded-[28px] border border-border bg-surface shadow-2xl max-h-[88vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border bg-surface/95 sticky top-0 z-10">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-text3">Tambah</p>
+                  <h2 className="text-xl font-bold text-text1">{getTitleText()}</h2>
+                </div>
+                <button onClick={onClose} className="p-2 rounded-full bg-card text-text2 hover:text-text1 transition-colors" type="button" aria-label="Tutup modal">
+                  <X size={18} />
+                </button>
+              </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="max-h-[calc(88vh-80px)] overflow-y-auto px-5 pb-5 pt-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <input
                   type="text"
@@ -143,7 +149,6 @@ export function AddModal({ isOpen, onClose, type, parentType, onSubmit }: AddMod
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full bg-card border border-border rounded-xl p-4 text-text1 placeholder-text3 focus:outline-none focus:border-accent font-bold"
-                  autoFocus
                 />
               </div>
 
@@ -260,15 +265,17 @@ export function AddModal({ isOpen, onClose, type, parentType, onSubmit }: AddMod
                 </>
               )}
 
-              <button
-                type="submit"
-                disabled={!title.trim()}
-                className="w-full bg-accent hover:bg-accent/90 text-white font-bold py-4 rounded-xl mt-4 disabled:opacity-50 transition-colors shadow-accent"
-              >
-                Buat
-              </button>
-            </form>
-          </motion.div>
+                  <button
+                    type="submit"
+                    disabled={!title.trim()}
+                    className="w-full bg-accent hover:bg-accent/90 text-white font-bold py-4 rounded-xl mt-4 disabled:opacity-50 transition-colors shadow-accent"
+                  >
+                    Buat
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>
