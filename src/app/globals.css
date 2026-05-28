@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #F0F2F5;
+  --surface: #FFFFFF;
+  --card: #FFFFFF;
+  --border: #E5E7EB;
+  --text1: #111827;
+  --text2: #4B5563;
+  --text3: #9CA3AF;
+  
+  --accent: #7C6DFA;
+  --accent-2: #3DD9B3;
+  --accent-red: #FF5E7D;
+  --accent-amber: #F5A623;
+  
+  --font-size-base: 16px;
+}
+
+:root.dark {
+  --bg: #080810;
+  --surface: #0F0F1A;
+  --card: #141422;
+  --border: #1E1E32;
+  --text1: #EEEEFF;
+  --text2: #8888BB;
+  --text3: #44446A;
+}
+
+html {
+  font-size: var(--font-size-base);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text1);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .shadow-card {
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  }
+}
+
+.dark .shadow-card {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* Hide scrollbar for clean UI */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
