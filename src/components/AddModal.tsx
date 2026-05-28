@@ -116,7 +116,7 @@ export function AddModal({ isOpen, onClose, type, parentType, onSubmit }: AddMod
             </div>
 
             {/* Scrollable body — NO autoFocus anywhere */}
-            <div className="overflow-y-auto scroll-native flex-1 px-5 pt-4 pb-4" style={{ overscrollBehavior: 'contain' }}>
+            <div className="overflow-y-auto scroll-native flex-1 px-5 pt-4 pb-2" style={{ overscrollBehavior: 'contain' }}>
               <div className="space-y-4">
 
                 {/* Title input — readOnly trick: tap to edit, no auto-keyboard */}
@@ -244,17 +244,26 @@ export function AddModal({ isOpen, onClose, type, parentType, onSubmit }: AddMod
                   </div>
                 )}
 
-                {/* Submit button — inside scroll area so always reachable */}
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!title.trim()}
-                  className="w-full bg-accent text-white font-bold py-3.5 rounded-2xl disabled:opacity-40 transition-opacity active:scale-[0.98] text-base"
-                  style={{ marginTop: 8 }}
-                >
-                  Buat {type === 'project' ? 'Proyek' : type === 'activity' ? 'Aktivitas' : 'Tugas'}
-                </button>
               </div>
+            </div>
+
+            {/* Submit button — STICKY di bawah, selalu kelihatan tanpa perlu scroll */}
+            <div
+              className="shrink-0 px-5 pb-4 pt-3"
+              style={{
+                borderTop: '1px solid var(--border)',
+                background: 'var(--surface)',
+                paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))',
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!title.trim()}
+                className="w-full bg-accent text-white font-bold py-3.5 rounded-2xl disabled:opacity-40 transition-opacity active:scale-[0.98] text-base"
+              >
+                Buat {type === 'project' ? 'Proyek' : type === 'activity' ? 'Aktivitas' : 'Tugas'}
+              </button>
             </div>
           </motion.div>
         </>

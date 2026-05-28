@@ -1,7 +1,7 @@
-import * as XLSX from 'xlsx';
+import XLSXStyle from 'xlsx-js-style';
 import { Activity, Project, Task } from '@/types';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── date & label helpers ────────────────────────────────────────────────────
 
 const fmt = (v?: string) => {
   if (!v) return '—';
@@ -10,94 +10,70 @@ const fmt = (v?: string) => {
 };
 
 const fmtStatus = (t: Task) => {
-  if (t.completed) return 'Selesai ✓';
-  if (t.status === 'in-progress') return 'Berlangsung';
-  return 'Belum';
+  if (t.completed) return '✅ Selesai';
+  if (t.status === 'in-progress') return '🔄 Berlangsung';
+  return '⬜ Belum';
 };
 
 const fmtPriority = (p?: string) => {
   if (!p) return '—';
-  return p === 'high' ? 'Tinggi' : p === 'medium' ? 'Sedang' : 'Rendah';
+  return p === 'high' ? '🔴 Tinggi' : p === 'medium' ? '🟡 Sedang' : '🟢 Rendah';
 };
 
 const fmtRecurrence = (r?: string) => {
-  if (!r || r === 'none') return '—';
-  if (r === 'daily') return 'Harian';
-  if (r === 'weekly') return 'Mingguan';
-  if (r === 'monthly') return 'Bulanan';
-  if (r === 'yearly') return 'Tahunan';
-  return r;
+  const map: Record<string, string> = { daily: '🔁 Harian', weekly: '📅 Mingguan', monthly: '🗓 Bulanan', yearly: '🎯 Tahunan', none: '—' };
+  return (r && map[r]) ? map[r] : '—';
 };
 
-// ─── colour palettes ─────────────────────────────────────────────────────────
+// ─── style builders ──────────────────────────────────────────────────────────
 
-const PROJECT_PALETTE = {
-  titleBg:     '1C1C6E',  // deep navy
-  titleFg:     'FFFFFF',
-  subtitleBg:  '3B3B9B',
-  subtitleFg:  'E8E8FF',
-  sectionBg:   'EBEBFF',
-  sectionFg:   '1C1C6E',
-  headerBg:    '4C5FD5',
-  headerFg:    'FFFFFF',
-  rowABg:      'F4F5FF',
-  rowBBg:      'FDFEFF',
-  borderClr:   'C5C8E8',
-  labelFg:     '5B5FA8',
-  valueFg:     '111144',
-  completedBg: 'E8FFE8',
-  progressBg:  'FFF8E1',
-};
+type Align = 'left' | 'center' | 'right';
 
-const ACTIVITY_PALETTE = {
-  titleBg:     '0A4F3A',  // deep emerald
-  titleFg:     'FFFFFF',
-  subtitleBg:  '1A7A5A',
-  subtitleFg:  'D8FFF0',
-  sectionBg:   'E8FFF5',
-  sectionFg:   '0A4F3A',
-  headerBg:    '2ECC9A',
-  headerFg:    '003325',
-  rowABg:      'F0FFF9',
-  rowBBg:      'FAFFFE',
-  borderClr:   'AADDC8',
-  labelFg:     '1A7A5A',
-  valueFg:     '0A3325',
-  completedBg: 'D0FFE8',
-  progressBg:  'FFFDE0',
-};
-
-// ─── border helper ────────────────────────────────────────────────────────────
-
-const border = (clr: string) => ({
-  top:    { style: 'thin', color: { rgb: clr } },
-  bottom: { style: 'thin', color: { rgb: clr } },
-  left:   { style: 'thin', color: { rgb: clr } },
-  right:  { style: 'thin', color: { rgb: clr } },
+const s = (
+  bgHex: string,
+  fgHex: string,
+  bold = false,
+  sz = 10,
+  align: Align = 'left',
+  italic = false,
+  border = true,
+  wrapText = false,
+) => ({
+  font: { name: 'Calibri', sz, bold, italic, color: { rgb: fgHex } },
+  fill: { fgColor: { rgb: bgHex }, patternType: 'solid' as const },
+  alignment: { horizontal: align, vertical: 'center' as const, wrapText },
+  border: border ? {
+    top:    { style: 'thin', color: { rgb: 'C8C8C8' } },
+    bottom: { style: 'thin', color: { rgb: 'C8C8C8' } },
+    left:   { style: 'thin', color: { rgb: 'C8C8C8' } },
+    right:  { style: 'thin', color: { rgb: 'C8C8C8' } },
+  } : {},
 });
 
-// ─── cell setter ─────────────────────────────────────────────────────────────
+const noBorder = (bgHex: string, fgHex: string, bold = false, sz = 10, align: Align = 'left') =>
+  s(bgHex, fgHex, bold, sz, align, false, false);
 
-const setRow = (ws: XLSX.WorkSheet, r: number, hpt: number) => {
-  if (!ws['!rows']) ws['!rows'] = [];
-  ws['!rows'][r] = { hpt };
-};
+// ─── worksheet builder helpers ───────────────────────────────────────────────
 
-const setCell = (ws: XLSX.WorkSheet, r: number, c: number, v: string | number, s: any) => {
-  const ref = XLSX.utils.encode_cell({ r, c });
-  if (!ws[ref]) ws[ref] = { t: typeof v === 'number' ? 'n' : 's', v };
-  ws[ref].s = s;
-};
+const cell = (v: string | number, style: object): XLSXStyle.CellObject => ({
+  v,
+  t: typeof v === 'number' ? 'n' : 's',
+  s: style,
+});
 
-const mergeCells = (ws: XLSX.WorkSheet, r1: number, c1: number, r2: number, c2: number) => {
-  if (!ws['!merges']) ws['!merges'] = [];
-  ws['!merges'].push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
-};
+const empty = (style: object): XLSXStyle.CellObject => ({ v: '', t: 's', s: style });
+
+type SheetRow = XLSXStyle.CellObject[];
+
+const merge = (r1: number, c1: number, r2: number, c2: number): XLSXStyle.Range => ({
+  s: { r: r1, c: c1 },
+  e: { r: r2, c: c2 },
+});
 
 // ─── download ────────────────────────────────────────────────────────────────
 
-const download = (wb: XLSX.WorkBook, name: string) => {
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+const download = (wb: XLSXStyle.WorkBook, name: string) => {
+  const buf = XLSXStyle.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -107,460 +83,230 @@ const download = (wb: XLSX.WorkBook, name: string) => {
   a.remove();
 };
 
-// ─── PROJECT EXPORT ──────────────────────────────────────────────────────────
+// ─── progress bar (text) ─────────────────────────────────────────────────────
+
+const progressBar = (pct: number, len = 20) => {
+  const filled = Math.round((pct / 100) * len);
+  return '█'.repeat(filled) + '░'.repeat(len - filled) + `  ${pct}%`;
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+//  PROJECT EXPORT
+// ════════════════════════════════════════════════════════════════════════════
 
 export function exportProjectReport(project: Project) {
-  const P = PROJECT_PALETTE;
-  const ws: XLSX.WorkSheet = {};
-  const COLS = 8;
-
-  // column widths
-  ws['!cols'] = [
-    { wch: 5 },   // No
-    { wch: 30 },  // Tugas
-    { wch: 16 },  // Status
-    { wch: 12 },  // Prioritas
-    { wch: 18 },  // Tenggat
-    { wch: 14 },  // Estimasi
-    { wch: 14 },  // Perulangan
-    { wch: 22 },  // Label
-  ];
-
-  let row = 0;
-
-  // ── Title row ──
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { t: 's', v: '  📋  LAPORAN PROYEK' };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = { font: { bold: true, sz: 18, color: { rgb: P.titleFg }, name: 'Calibri' }, fill: { fgColor: { rgb: P.titleBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left', indent: 1 } };
-  }
-  setRow(ws, row, 38);
-  row++;
-
-  // ── Subtitle ──
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { t: 's', v: `  ${project.title}  •  Digenerate: ${fmt(new Date().toISOString())}` };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = { font: { sz: 10, color: { rgb: P.subtitleFg }, italic: true, name: 'Calibri' }, fill: { fgColor: { rgb: P.subtitleBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left', indent: 1 } };
-  }
-  setRow(ws, row, 22);
-  row++;
-
-  // ── Blank gap ──
-  row++;
-
-  // ── Info section header ──
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { t: 's', v: '  INFORMASI PROYEK' };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = { font: { bold: true, sz: 11, color: { rgb: P.sectionFg }, name: 'Calibri' }, fill: { fgColor: { rgb: P.sectionBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left', indent: 1 }, border: border(P.borderClr) };
-  }
-  setRow(ws, row, 24);
-  row++;
-
-  // ── Info rows (label | value spanning rest) ──
-  const labelStyle = (odd: boolean) => ({
-    font: { bold: true, sz: 10, color: { rgb: P.labelFg }, name: 'Calibri' },
-    fill: { fgColor: { rgb: odd ? P.rowABg : P.rowBBg }, patternType: 'solid' },
-    alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
-    border: border(P.borderClr),
-  });
-  const valueStyle = (odd: boolean) => ({
-    font: { sz: 10, color: { rgb: P.valueFg }, name: 'Calibri' },
-    fill: { fgColor: { rgb: odd ? P.rowABg : P.rowBBg }, patternType: 'solid' },
-    alignment: { vertical: 'center', horizontal: 'left' },
-    border: border(P.borderClr),
-  });
-
-  const infoRows: [string, string][] = [
-    ['Nama Proyek',    project.title],
-    ['Deskripsi',      project.description || '—'],
-    ['Status',         project.status === 'active' ? 'Aktif' : project.status === 'completed' ? 'Selesai' : project.status === 'paused' ? 'Dijeda' : 'Diarsipkan'],
-    ['Tanggal Mulai',  fmt(project.startDate)],
-    ['Tenggat Waktu',  fmt(project.deadline)],
-    ['Target Jam',     project.targetHours ? `${project.targetHours} jam` : '—'],
-    ['Total Tugas',    `${project.tasks.length} tugas`],
-    ['Sudah Selesai',  `${project.tasks.filter(t => t.completed).length} tugas`],
-  ];
-
-  infoRows.forEach(([label, val], i) => {
-    const odd = i % 2 === 0;
-    setCell(ws, row, 0, label, labelStyle(odd));
-    // merge value across cols 1..COLS-1
-    ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = { t: 's', v: val };
-    ws[XLSX.utils.encode_cell({ r: row, c: 1 })].s = valueStyle(odd);
-    mergeCells(ws, row, 1, row, COLS - 1);
-    for (let c = 2; c < COLS; c++) {
-      const ref = XLSX.utils.encode_cell({ r: row, c });
-      if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-      ws[ref].s = valueStyle(odd);
-    }
-    setRow(ws, row, 20);
-    row++;
-  });
-
-  row++; // gap
-
-  if (project.tasks.length === 0) {
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Proyek');
-    if (!ws['!ref']) ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: row, c: COLS - 1 } });
-    download(wb, `laporan-proyek-${project.title.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
-    return;
-  }
-
-  // ── Task section header ──
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { t: 's', v: '  RINCIAN TUGAS' };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = { font: { bold: true, sz: 11, color: { rgb: P.sectionFg }, name: 'Calibri' }, fill: { fgColor: { rgb: P.sectionBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left', indent: 1 }, border: border(P.borderClr) };
-  }
-  setRow(ws, row, 24);
-  row++;
-
-  // ── Table header ──
-  const taskHeaders = ['No', 'Nama Tugas', 'Status', 'Prioritas', 'Tenggat', 'Estimasi', 'Perulangan', 'Label'];
-  taskHeaders.forEach((h, c) => {
-    ws[XLSX.utils.encode_cell({ r: row, c })] = {
-      t: 's', v: h,
-      s: { font: { bold: true, sz: 10, color: { rgb: P.headerFg }, name: 'Calibri' }, fill: { fgColor: { rgb: P.headerBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'center' }, border: border(P.borderClr) },
-    };
-  });
-  setRow(ws, row, 22);
-  row++;
-
-  // ── Task data rows ──
-  project.tasks.forEach((task, i) => {
-    const odd = i % 2 === 0;
-    const done = task.completed;
-    const rowBg = done ? P.completedBg : (odd ? P.rowABg : P.rowBBg);
-
-    const cells: (string | number)[] = [
-      i + 1,
-      task.title,
-      fmtStatus(task),
-      fmtPriority(task.priority),
-      fmt(task.dueDate),
-      task.estimatedMinutes ? `${task.estimatedMinutes} mnt` : '—',
-      fmtRecurrence(task.recurrence),
-      (task.tags || []).join(', ') || '—',
-    ];
-
-    cells.forEach((val, c) => {
-      ws[XLSX.utils.encode_cell({ r: row, c })] = {
-        t: typeof val === 'number' ? 'n' : 's', v: val,
-        s: {
-          font: { sz: 9, color: { rgb: P.valueFg }, name: 'Calibri', strike: done },
-          fill: { fgColor: { rgb: rowBg }, patternType: 'solid' },
-          alignment: { vertical: 'center', horizontal: c === 0 ? 'center' : 'left' },
-          border: border(P.borderClr),
-        },
-      };
-    });
-    setRow(ws, row, 18);
-    row++;
-  });
-
-  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: row, c: COLS - 1 } });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Proyek');
-  download(wb, `laporan-proyek-${project.title.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
-}
-
-// ─── ACTIVITY EXPORT ─────────────────────────────────────────────────────────
-
-export function exportActivityReport(activity: Activity) {
-  const P = ACTIVITY_PALETTE;
-  const ws: XLSX.WorkSheet = {};
-  const COLS = 8;
-
-  ws['!cols'] = [
-    { wch: 5 },
-    { wch: 28 },
-    { wch: 16 },
-    { wch: 14 },
-    { wch: 16 },
-    { wch: 14 },
-    { wch: 14 },
-    { wch: 20 },
-  ];
-
-  let row = 0;
-
-  // ── Title ──
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { t: 's', v: '  🌿  LAPORAN AKTIVITAS KEBIASAAN' };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = {
-      font: { bold: true, sz: 18, color: { rgb: P.titleFg }, name: 'Calibri' },
-      fill: { fgColor: { rgb: P.titleBg }, patternType: 'solid' },
-      alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
-    };
-  }
-  setRow(ws, row, 38);
-  row++;
-
-  // ── Subtitle ──
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = {
-    t: 's',
-    v: `  ${activity.title}  •  Digenerate: ${fmt(new Date().toISOString())}`,
+  // Colour palette — deep navy theme
+  const C = {
+    navyDark:  '0D1B4B',
+    navy:      '1A3A8F',
+    navyMid:   '2D5BE3',
+    navyLight: 'E8EEFF',
+    navyPale:  'F4F6FF',
+    white:     'FFFFFF',
+    gold:      'F5C842',
+    green:     '1AAF5D',
+    greenBg:   'E6F9EE',
+    red:       'E53E3E',
+    redBg:     'FFF0F0',
+    amber:     'D97706',
+    amberBg:   'FFFBEB',
+    gray1:     '374151',
+    gray2:     '6B7280',
+    gray3:     'F9FAFB',
+    border:    'CBD5E1',
   };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = {
-      font: { sz: 10, color: { rgb: P.subtitleFg }, italic: true, name: 'Calibri' },
-      fill: { fgColor: { rgb: P.subtitleBg }, patternType: 'solid' },
-      alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
-    };
-  }
-  setRow(ws, row, 22);
-  row++;
 
-  row++; // gap
+  const total   = project.tasks.length;
+  const done    = project.tasks.filter(t => t.completed).length;
+  const inProg  = project.tasks.filter(t => !t.completed && t.status === 'in-progress').length;
+  const todo    = total - done - inProg;
+  const pct     = total > 0 ? Math.round((done / total) * 100) : 0;
+  const high    = project.tasks.filter(t => t.priority === 'high' && !t.completed).length;
 
-  // ── Info section header ──
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { t: 's', v: '  INFORMASI AKTIVITAS' };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = {
-      font: { bold: true, sz: 11, color: { rgb: P.sectionFg }, name: 'Calibri' },
-      fill: { fgColor: { rgb: P.sectionBg }, patternType: 'solid' },
-      alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
-      border: border(P.borderClr),
-    };
-  }
-  setRow(ws, row, 24);
-  row++;
+  const rows: SheetRow[] = [];
+  const merges: XLSXStyle.Range[] = [];
+  let r = 0;
 
-  const labelStyle = (odd: boolean) => ({
-    font: { bold: true, sz: 10, color: { rgb: P.labelFg }, name: 'Calibri' },
-    fill: { fgColor: { rgb: odd ? P.rowABg : P.rowBBg }, patternType: 'solid' },
-    alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
-    border: border(P.borderClr),
-  });
-  const valueStyle = (odd: boolean) => ({
-    font: { sz: 10, color: { rgb: P.valueFg }, name: 'Calibri' },
-    fill: { fgColor: { rgb: odd ? P.rowABg : P.rowBBg }, patternType: 'solid' },
-    alignment: { vertical: 'center', horizontal: 'left' },
-    border: border(P.borderClr),
-  });
+  const addMerge = (r1: number, c1: number, r2: number, c2: number) => merges.push(merge(r1, c1, r2, c2));
 
-  const totalHistory = activity.tasks.reduce(
-    (sum, t) => sum + (t.completionHistory?.length ?? 0), 0
-  );
-  const completedCount = activity.tasks.filter(
-    (t) => t.completed || (t.completionHistory?.length ?? 0) > 0
-  ).length;
+  // ── Row 0: Main title banner ──
+  rows.push([
+    cell(`  📋  LAPORAN PROYEK  —  ${project.title.toUpperCase()}`, s(C.navyDark, C.white, true, 20, 'left', false, true)),
+    ...Array(7).fill(empty(s(C.navyDark, C.white))),
+  ]);
+  addMerge(r, 0, r, 7); r++;
 
-  const infoRows: [string, string][] = [
-    ['Nama Aktivitas',   activity.title],
-    ['Kategori',         activity.category || 'Umum'],
-    ['Deskripsi',        activity.description || '—'],
-    ['Status',           activity.status === 'active' ? 'Aktif' : activity.status === 'completed' ? 'Selesai' : 'Dijeda'],
-    ['Tanggal Mulai',    fmt(activity.startDate)],
-    ['Total Kebiasaan',  `${activity.tasks.length} kebiasaan`],
-    ['Pernah Selesai',   `${completedCount} kebiasaan`],
-    ['Total Checklist',  `${totalHistory} kali`],
+  // ── Row 1: Subtitle ──
+  rows.push([
+    cell(`  Digenerate pada ${fmt(new Date().toISOString())}  •  Progesme Project Manager`, s(C.navy, 'AABFFF', false, 9, 'left', true)),
+    ...Array(7).fill(empty(s(C.navy, C.white))),
+  ]);
+  addMerge(r, 0, r, 7); r++;
+
+  // ── Row 2: Blank ──
+  rows.push(Array(8).fill(empty(noBorder(C.white, C.white)))); r++;
+
+  // ── Row 3: Section label "INFO PROYEK" ──
+  rows.push([
+    cell('  ℹ️  INFORMASI PROYEK', s(C.navyLight, C.navyDark, true, 11, 'left')),
+    ...Array(7).fill(empty(s(C.navyLight, C.navyDark))),
+  ]);
+  addMerge(r, 0, r, 7); r++;
+
+  // Info grid: left col = label, right col = value (2 cols wide), 2 blocks side by side
+  const infoLeft: [string, string][] = [
+    ['Nama Proyek',   project.title],
+    ['Deskripsi',     project.description || '—'],
+    ['Tanggal Mulai', fmt(project.startDate)],
+    ['Tenggat Waktu', fmt(project.deadline)],
+  ];
+  const infoRight: [string, string][] = [
+    ['Status',        project.status === 'active' ? '🟢 Aktif' : project.status === 'completed' ? '✅ Selesai' : '⏸ Dijeda'],
+    ['Target Jam',    project.targetHours ? `${project.targetHours} jam` : '—'],
+    ['Total Tugas',   `${total} tugas`],
+    ['Prioritas ⚠️',  high > 0 ? `${high} tugas prioritas tinggi` : 'Tidak ada'],
   ];
 
-  infoRows.forEach(([label, val], i) => {
+  for (let i = 0; i < 4; i++) {
     const odd = i % 2 === 0;
-    setCell(ws, row, 0, label, labelStyle(odd));
-    ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = { t: 's', v: val };
-    ws[XLSX.utils.encode_cell({ r: row, c: 1 })].s = valueStyle(odd);
-    mergeCells(ws, row, 1, row, COLS - 1);
-    for (let c = 2; c < COLS; c++) {
-      const ref = XLSX.utils.encode_cell({ r: row, c });
-      if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-      ws[ref].s = valueStyle(odd);
-    }
-    setRow(ws, row, 20);
-    row++;
-  });
-
-  row++; // gap
-
-  if (activity.tasks.length === 0) {
-    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: row, c: COLS - 1 } });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Aktivitas');
-    download(wb, `laporan-aktivitas-${activity.title.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
-    return;
+    const bg = odd ? C.navyPale : C.white;
+    rows.push([
+      cell(`  ${infoLeft[i][0]}`,  s(bg, C.navy,  true,  10, 'left')),
+      cell(`  ${infoLeft[i][1]}`,  s(bg, C.gray1, false, 10, 'left')),
+      empty(s(bg, C.gray1)),
+      empty(s(bg, C.gray1)),
+      cell(`  ${infoRight[i][0]}`, s(bg, C.navy,  true,  10, 'left')),
+      cell(`  ${infoRight[i][1]}`, s(bg, C.gray1, false, 10, 'left')),
+      empty(s(bg, C.gray1)),
+      empty(s(bg, C.gray1)),
+    ]);
+    // merge value cols
+    addMerge(r, 1, r, 3);
+    addMerge(r, 5, r, 7);
+    r++;
   }
 
-  // ── Habit section header ──
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { t: 's', v: '  RINCIAN KEBIASAAN' };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = {
-      font: { bold: true, sz: 11, color: { rgb: P.sectionFg }, name: 'Calibri' },
-      fill: { fgColor: { rgb: P.sectionBg }, patternType: 'solid' },
-      alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
-      border: border(P.borderClr),
-    };
-  }
-  setRow(ws, row, 24);
-  row++;
+  // ── Blank ──
+  rows.push(Array(8).fill(empty(noBorder(C.white, C.white)))); r++;
 
-  // ── Table header ──
-  const headers = ['No', 'Nama Kebiasaan', 'Status', 'Perulangan', 'Target / Tenggat', 'Riwayat', 'Estimasi', 'Label'];
-  headers.forEach((h, c) => {
-    ws[XLSX.utils.encode_cell({ r: row, c })] = {
-      t: 's', v: h,
-      s: {
-        font: { bold: true, sz: 10, color: { rgb: P.headerFg }, name: 'Calibri' },
-        fill: { fgColor: { rgb: P.headerBg }, patternType: 'solid' },
-        alignment: { vertical: 'center', horizontal: 'center' },
-        border: border(P.borderClr),
-      },
-    };
-  });
-  setRow(ws, row, 22);
-  row++;
+  // ── Progress Summary Section ──
+  rows.push([
+    cell('  📊  RINGKASAN PROGRES', s(C.navyLight, C.navyDark, true, 11, 'left')),
+    ...Array(7).fill(empty(s(C.navyLight, C.navyDark))),
+  ]);
+  addMerge(r, 0, r, 7); r++;
 
-  // ── Habit data rows ──
-  activity.tasks.forEach((task, i) => {
-    const odd = i % 2 === 0;
-    const done = task.completed || (task.completionHistory?.length ?? 0) > 0;
-    const rowBg = done ? P.completedBg : (odd ? P.rowABg : P.rowBBg);
-    const histCount = task.completionHistory?.length ?? 0;
+  // Progress bar row
+  rows.push([
+    cell(`  Progress Penyelesaian`, s(C.navyPale, C.navy, true, 9, 'left')),
+    cell(progressBar(pct), s(C.navyPale, pct >= 80 ? C.green : pct >= 40 ? C.amber : C.red, true, 9, 'left')),
+    ...Array(6).fill(empty(s(C.navyPale, C.gray1))),
+  ]);
+  addMerge(r, 1, r, 7); r++;
 
-    const cells: (string | number)[] = [
-      i + 1,
-      task.title,
-      fmtStatus(task),
-      fmtRecurrence(task.recurrence),
-      fmt(task.dueDate),
-      histCount > 0 ? `${histCount}× selesai` : '0× selesai',
-      task.estimatedMinutes ? `${task.estimatedMinutes} mnt` : '—',
-      (task.tags || []).join(', ') || '—',
-    ];
+  // Stats row: 4 stat boxes
+  const statBgs  = [C.greenBg, C.navyPale, C.amberBg, C.redBg];
+  const statFgs  = [C.green,   C.navyMid,  C.amber,   C.red];
+  const statNums = [done, todo, inProg, high];
+  const statLbls = ['✅ Selesai', '⬜ Belum', '🔄 Proses', '🔴 Prioritas Tinggi'];
 
-    cells.forEach((val, c) => {
-      ws[XLSX.utils.encode_cell({ r: row, c })] = {
-        t: typeof val === 'number' ? 'n' : 's', v: val,
-        s: {
-          font: { sz: 9, color: { rgb: P.valueFg }, name: 'Calibri' },
-          fill: { fgColor: { rgb: rowBg }, patternType: 'solid' },
-          alignment: { vertical: 'center', horizontal: c === 0 ? 'center' : 'left' },
-          border: border(P.borderClr),
-        },
-      };
+  // Label row
+  rows.push([
+    ...statLbls.flatMap((lbl, i) => [
+      cell(`  ${lbl}`, s(statBgs[i], statFgs[i], true, 9, 'left')),
+      empty(s(statBgs[i], statFgs[i])),
+    ]),
+  ]);
+  statLbls.forEach((_, i) => addMerge(r, i * 2, r, i * 2 + 1));
+  r++;
+
+  // Number row
+  rows.push([
+    ...statNums.flatMap((num, i) => [
+      cell(num, s(statBgs[i], statFgs[i], true, 22, 'center')),
+      empty(s(statBgs[i], statFgs[i])),
+    ]),
+  ]);
+  statNums.forEach((_, i) => addMerge(r, i * 2, r, i * 2 + 1));
+  r++;
+
+  // ── Blank ──
+  rows.push(Array(8).fill(empty(noBorder(C.white, C.white)))); r++;
+
+  // ── Task Table ──
+  if (total > 0) {
+    rows.push([
+      cell('  📝  RINCIAN TUGAS', s(C.navyLight, C.navyDark, true, 11, 'left')),
+      ...Array(7).fill(empty(s(C.navyLight, C.navyDark))),
+    ]);
+    addMerge(r, 0, r, 7); r++;
+
+    // Table header
+    const headers = ['No', 'Nama Tugas', 'Status', 'Prioritas', 'Tenggat', 'Estimasi', 'Perulangan', 'Label'];
+    rows.push(headers.map(h => cell(`  ${h}`, s(C.navyMid, C.white, true, 11, 'center'))));
+    r++;
+
+    // Task rows
+    project.tasks.forEach((task, i) => {
+      const isDone = task.completed;
+      const isHigh = task.priority === 'high' && !isDone;
+      const bg = isDone ? C.greenBg : isHigh ? C.redBg : i % 2 === 0 ? C.navyPale : C.white;
+      const fg = isDone ? C.green : isHigh ? C.red : C.gray1;
+      rows.push([
+        cell(i + 1,                                                                    s(bg, C.gray2, true,  10, 'center')),
+        cell(`  ${task.title}`,                                                        s(bg, fg,      isDone, 10, 'left')),
+        cell(`  ${fmtStatus(task)}`,                                                   s(bg, fg,      false,  10, 'left')),
+        cell(`  ${fmtPriority(task.priority)}`,                                        s(bg, fg,      false,  10, 'left')),
+        cell(`  ${fmt(task.dueDate)}`,                                                 s(bg, fg,      false,  10, 'left')),
+        cell(`  ${task.estimatedMinutes ? task.estimatedMinutes + ' mnt' : '—'}`,     s(bg, fg,      false,  10, 'center')),
+        cell(`  ${fmtRecurrence(task.recurrence)}`,                                    s(bg, fg,      false,  10, 'left')),
+        cell(`  ${(task.tags || []).join(', ') || '—'}`,                              s(bg, fg,      false,  10, 'left')),
+      ]);
+      r++;
     });
-    setRow(ws, row, 18);
-    row++;
-  });
 
-  // ── Consistency streak mini-table ──
-  row++;
-  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { t: 's', v: '  RIWAYAT KONSISTENSI (7 HARI TERAKHIR PER KEBIASAAN)' };
-  mergeCells(ws, row, 0, row, COLS - 1);
-  for (let c = 0; c < COLS; c++) {
-    const ref = XLSX.utils.encode_cell({ r: row, c });
-    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-    ws[ref].s = {
-      font: { bold: true, sz: 11, color: { rgb: P.sectionFg }, name: 'Calibri' },
-      fill: { fgColor: { rgb: P.sectionBg }, patternType: 'solid' },
-      alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
-      border: border(P.borderClr),
-    };
+    // Footer total row
+    rows.push([
+      empty(s(C.navyDark, C.white)),
+      cell(`  Total: ${total} tugas`, s(C.navyDark, C.white, true, 9, 'left')),
+      cell(`  ${done} selesai`,       s(C.navyDark, C.gold,  true, 9, 'center')),
+      cell(`  ${pct}%`,               s(C.navyDark, C.gold,  true, 9, 'center')),
+      empty(s(C.navyDark, C.white)),
+      empty(s(C.navyDark, C.white)),
+      empty(s(C.navyDark, C.white)),
+      empty(s(C.navyDark, C.white)),
+    ]);
+    r++;
   }
-  setRow(ws, row, 24);
-  row++;
 
-  // streak header: Kebiasaan | D-6 | D-5 | D-4 | D-3 | D-2 | D-1 | Hari ini
-  const today = new Date();
-  const dayLabels = Array.from({ length: 7 }, (_, k) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - (6 - k));
-    return d.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short' });
-  });
+  // ── Footer note ──
+  rows.push(Array(8).fill(empty(noBorder(C.white, C.white)))); r++;
+  rows.push([
+    cell('  Catatan: Dokumen ini digenerate otomatis oleh Progesme. Data berdasarkan input pengguna.', noBorder(C.gray3, C.gray2, false, 8, 'left')),
+    ...Array(7).fill(empty(noBorder(C.gray3, C.gray2))),
+  ]);
+  addMerge(r, 0, r, 7); r++;
 
-  const streakHeaders = ['Kebiasaan', ...dayLabels, 'Streak'];
-  const streakCols = streakHeaders.length;
+  // ── Build worksheet ──
+  const ws: XLSXStyle.WorkSheet = XLSXStyle.utils.aoa_to_sheet(rows as any[][]);
+  ws['!merges'] = merges;
+  // Lebar kolom diperbesar agar terbaca di HP (satuan karakter)
   ws['!cols'] = [
-    { wch: 26 },
-    ...Array(7).fill({ wch: 14 }),
-    { wch: 10 },
+    { wch: 6  },  // No
+    { wch: 36 },  // Nama Tugas / label kiri
+    { wch: 20 },  // Status / value kiri col2
+    { wch: 20 },  // value kiri col3
+    { wch: 20 },  // Prioritas / label kanan
+    { wch: 30 },  // Tenggat / value kanan
+    { wch: 18 },  // Estimasi / value kanan col2
+    { wch: 24 },  // Perulangan / Label
   ];
+  // Tinggi baris lebih besar agar tidak sakit mata di HP
+  ws['!rows'] = rows.map((_, i) => ({
+    hpt: i === 0 ? 44 : i === 1 ? 22 : i === 3 ? 28 : 24,
+  }));
 
-  streakHeaders.forEach((h, c) => {
-    ws[XLSX.utils.encode_cell({ r: row, c })] = {
-      t: 's', v: h,
-      s: {
-        font: { bold: true, sz: 9, color: { rgb: P.headerFg }, name: 'Calibri' },
-        fill: { fgColor: { rgb: P.headerBg }, patternType: 'solid' },
-        alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
-        border: border(P.borderClr),
-      },
-    };
-  });
-  setRow(ws, row, 28);
-  row++;
-
-  activity.tasks.forEach((task, i) => {
-    const odd = i % 2 === 0;
-    const bg = odd ? P.rowABg : P.rowBBg;
-    const history = new Set(task.completionHistory || []);
-
-    // task name cell
-    ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = {
-      t: 's', v: task.title,
-      s: { font: { sz: 9, bold: true, color: { rgb: P.valueFg }, name: 'Calibri' }, fill: { fgColor: { rgb: bg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left' }, border: border(P.borderClr) },
-    };
-
-    let streak = 0;
-    for (let k = 6; k >= 0; k--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - k);
-      const key = d.toISOString().slice(0, 10);
-      const done = history.has(key) || (k === 0 && task.completed);
-      const colIdx = 7 - k;
-      ws[XLSX.utils.encode_cell({ r: row, c: colIdx })] = {
-        t: 's', v: done ? '✓' : '·',
-        s: {
-          font: { sz: 11, bold: done, color: { rgb: done ? '1A7A5A' : 'AAAAAA' }, name: 'Calibri' },
-          fill: { fgColor: { rgb: done ? P.completedBg : bg }, patternType: 'solid' },
-          alignment: { vertical: 'center', horizontal: 'center' },
-          border: border(P.borderClr),
-        },
-      };
-      if (done) streak++; else if (k > 0) streak = 0;
-    }
-
-    // streak count
-    ws[XLSX.utils.encode_cell({ r: row, c: 8 })] = {
-      t: 'n', v: streak,
-      s: {
-        font: { sz: 10, bold: true, color: { rgb: streak >= 5 ? '0A4F3A' : P.valueFg }, name: 'Calibri' },
-        fill: { fgColor: { rgb: streak >= 5 ? P.completedBg : bg }, patternType: 'solid' },
-        alignment: { vertical: 'center', horizontal: 'center' },
-        border: border(P.borderClr),
-      },
-    };
-
-    setRow(ws, row, 18);
-    row++;
-  });
-
-  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: row, c: Math.max(COLS, streakCols) - 1 } });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Aktivitas');
-  download(wb, `laporan-aktivitas-${activity.title.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
+  const wb = XLSXStyle.utils.book_new();
+  XLSXStyle.utils.book_append_sheet(wb, ws, 'Laporan Proyek');
+  download(wb, `laporan-proyek-${project.title.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
 }
