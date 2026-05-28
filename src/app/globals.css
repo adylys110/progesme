@@ -10,13 +10,14 @@
   --text1: #111827;
   --text2: #4B5563;
   --text3: #9CA3AF;
-  
+
   --accent: #7C6DFA;
   --accent-2: #3DD9B3;
   --accent-red: #FF5E7D;
   --accent-amber: #F5A623;
-  
+
   --font-size-base: 16px;
+  --nav-height: 64px;
 }
 
 :root.dark {
@@ -32,34 +33,79 @@
 html {
   font-size: var(--font-size-base);
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   background-color: var(--bg);
   color: var(--text1);
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* Lock body so only #app-scroll-root scrolls */
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
+/* ── App scroll container ──────────────────────────────────────────── */
+#app-scroll-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Leave room for navbar + iOS home-indicator */
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Momentum scroll on iOS */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent pull-to-refresh / over-scroll bounce bleeding */
+  overscroll-behavior-y: contain;
+  /* Extra bottom padding clears nav + safe area */
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────── */
 @layer utilities {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  
+  /* Padding inside content areas to sit below status bar */
   .pt-safe {
-    padding-top: env(safe-area-inset-top);
+    padding-top: max(env(safe-area-inset-top, 0px), 12px);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .shadow-card {
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
   }
+
+  /* Native momentum scroll for inner panels (e.g. modal body) */
+  .scroll-native {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Smooth native-app feel for page transitions */
+  .animate-fade-up {
+    animation: fadeUp 0.22s ease both;
+  }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .dark .shadow-card {
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
 }
 
-/* Hide scrollbar for clean UI */
+/* ── Hide scrollbar ────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 0px;
+  width: 0;
   background: transparent;
 }

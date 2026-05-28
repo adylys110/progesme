@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Progesme',
   },
 };
@@ -24,18 +24,23 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans bg-bg text-text1 min-h-screen pb-20 selection:bg-accent/30 selection:text-accent`}>
+      <body className={`${inter.variable} font-sans bg-bg text-text1 selection:bg-accent/30 selection:text-accent`}>
         <StorageProvider>
           <ThemeProvider>
-            <main className="max-w-md mx-auto min-h-screen relative shadow-2xl bg-bg">
-              {children}
-              <Navigation />
-            </main>
+            {/* Scroll root — this scrolls, body stays fixed */}
+            <div id="app-scroll-root">
+              <main className="max-w-md mx-auto min-h-screen relative shadow-2xl bg-bg">
+                {children}
+              </main>
+            </div>
+            {/* Nav is outside the scroll container so it never moves */}
+            <Navigation />
           </ThemeProvider>
         </StorageProvider>
       </body>
