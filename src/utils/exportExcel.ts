@@ -78,6 +78,11 @@ const border = (clr: string) => ({
 
 // ─── cell setter ─────────────────────────────────────────────────────────────
 
+const setRow = (ws: XLSX.WorkSheet, r: number, hpt: number) => {
+  if (!ws['!rows']) ws['!rows'] = [];
+  ws['!rows'][r] = { hpt };
+};
+
 const setCell = (ws: XLSX.WorkSheet, r: number, c: number, v: string | number, s: any) => {
   const ref = XLSX.utils.encode_cell({ r, c });
   if (!ws[ref]) ws[ref] = { t: typeof v === 'number' ? 'n' : 's', v };
@@ -131,8 +136,7 @@ export function exportProjectReport(project: Project) {
     if (!ws[ref]) ws[ref] = { t: 's', v: '' };
     ws[ref].s = { font: { bold: true, sz: 18, color: { rgb: P.titleFg }, name: 'Calibri' }, fill: { fgColor: { rgb: P.titleBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left', indent: 1 } };
   }
-  ws['!rows'] = ws['!rows'] || [];
-  ws['!rows'][row] = { hpt: 38 };
+  setRow(ws, row, 38);
   row++;
 
   // ── Subtitle ──
@@ -143,7 +147,7 @@ export function exportProjectReport(project: Project) {
     if (!ws[ref]) ws[ref] = { t: 's', v: '' };
     ws[ref].s = { font: { sz: 10, color: { rgb: P.subtitleFg }, italic: true, name: 'Calibri' }, fill: { fgColor: { rgb: P.subtitleBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left', indent: 1 } };
   }
-  ws['!rows'][row] = { hpt: 22 };
+  setRow(ws, row, 22);
   row++;
 
   // ── Blank gap ──
@@ -157,7 +161,7 @@ export function exportProjectReport(project: Project) {
     if (!ws[ref]) ws[ref] = { t: 's', v: '' };
     ws[ref].s = { font: { bold: true, sz: 11, color: { rgb: P.sectionFg }, name: 'Calibri' }, fill: { fgColor: { rgb: P.sectionBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left', indent: 1 }, border: border(P.borderClr) };
   }
-  ws['!rows'][row] = { hpt: 24 };
+  setRow(ws, row, 24);
   row++;
 
   // ── Info rows (label | value spanning rest) ──
@@ -197,8 +201,7 @@ export function exportProjectReport(project: Project) {
       if (!ws[ref]) ws[ref] = { t: 's', v: '' };
       ws[ref].s = valueStyle(odd);
     }
-    ws['!rows'] = ws['!rows'] || [];
-    ws['!rows'][row] = { hpt: 20 };
+    setRow(ws, row, 20);
     row++;
   });
 
@@ -220,7 +223,7 @@ export function exportProjectReport(project: Project) {
     if (!ws[ref]) ws[ref] = { t: 's', v: '' };
     ws[ref].s = { font: { bold: true, sz: 11, color: { rgb: P.sectionFg }, name: 'Calibri' }, fill: { fgColor: { rgb: P.sectionBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'left', indent: 1 }, border: border(P.borderClr) };
   }
-  ws['!rows'][row] = { hpt: 24 };
+  setRow(ws, row, 24);
   row++;
 
   // ── Table header ──
@@ -231,7 +234,7 @@ export function exportProjectReport(project: Project) {
       s: { font: { bold: true, sz: 10, color: { rgb: P.headerFg }, name: 'Calibri' }, fill: { fgColor: { rgb: P.headerBg }, patternType: 'solid' }, alignment: { vertical: 'center', horizontal: 'center' }, border: border(P.borderClr) },
     };
   });
-  ws['!rows'][row] = { hpt: 22 };
+  setRow(ws, row, 22);
   row++;
 
   // ── Task data rows ──
@@ -262,7 +265,7 @@ export function exportProjectReport(project: Project) {
         },
       };
     });
-    ws['!rows'][row] = { hpt: 18 };
+    setRow(ws, row, 18);
     row++;
   });
 
@@ -280,17 +283,16 @@ export function exportActivityReport(activity: Activity) {
   const COLS = 8;
 
   ws['!cols'] = [
-    { wch: 5 },   // No
-    { wch: 28 },  // Kebiasaan
-    { wch: 16 },  // Status
-    { wch: 14 },  // Perulangan
-    { wch: 16 },  // Target / Due
-    { wch: 14 },  // Riwayat Selesai
-    { wch: 14 },  // Estimasi
-    { wch: 20 },  // Label
+    { wch: 5 },
+    { wch: 28 },
+    { wch: 16 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 20 },
   ];
 
-  ws['!rows'] = [];
   let row = 0;
 
   // ── Title ──
@@ -305,7 +307,7 @@ export function exportActivityReport(activity: Activity) {
       alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
     };
   }
-  ws['!rows'][row] = { hpt: 38 };
+  setRow(ws, row, 38);
   row++;
 
   // ── Subtitle ──
@@ -323,7 +325,7 @@ export function exportActivityReport(activity: Activity) {
       alignment: { vertical: 'center', horizontal: 'left', indent: 1 },
     };
   }
-  ws['!rows'][row] = { hpt: 22 };
+  setRow(ws, row, 22);
   row++;
 
   row++; // gap
@@ -341,7 +343,7 @@ export function exportActivityReport(activity: Activity) {
       border: border(P.borderClr),
     };
   }
-  ws['!rows'][row] = { hpt: 24 };
+  setRow(ws, row, 24);
   row++;
 
   const labelStyle = (odd: boolean) => ({
@@ -386,7 +388,7 @@ export function exportActivityReport(activity: Activity) {
       if (!ws[ref]) ws[ref] = { t: 's', v: '' };
       ws[ref].s = valueStyle(odd);
     }
-    ws['!rows'][row] = { hpt: 20 };
+    setRow(ws, row, 20);
     row++;
   });
 
@@ -413,7 +415,7 @@ export function exportActivityReport(activity: Activity) {
       border: border(P.borderClr),
     };
   }
-  ws['!rows'][row] = { hpt: 24 };
+  setRow(ws, row, 24);
   row++;
 
   // ── Table header ──
@@ -429,7 +431,7 @@ export function exportActivityReport(activity: Activity) {
       },
     };
   });
-  ws['!rows'][row] = { hpt: 22 };
+  setRow(ws, row, 22);
   row++;
 
   // ── Habit data rows ──
@@ -461,7 +463,7 @@ export function exportActivityReport(activity: Activity) {
         },
       };
     });
-    ws['!rows'][row] = { hpt: 18 };
+    setRow(ws, row, 18);
     row++;
   });
 
@@ -479,7 +481,7 @@ export function exportActivityReport(activity: Activity) {
       border: border(P.borderClr),
     };
   }
-  ws['!rows'][row] = { hpt: 24 };
+  setRow(ws, row, 24);
   row++;
 
   // streak header: Kebiasaan | D-6 | D-5 | D-4 | D-3 | D-2 | D-1 | Hari ini
@@ -509,7 +511,7 @@ export function exportActivityReport(activity: Activity) {
       },
     };
   });
-  ws['!rows'][row] = { hpt: 28 };
+  setRow(ws, row, 28);
   row++;
 
   activity.tasks.forEach((task, i) => {
@@ -553,7 +555,7 @@ export function exportActivityReport(activity: Activity) {
       },
     };
 
-    ws['!rows'][row] = { hpt: 18 };
+    setRow(ws, row, 18);
     row++;
   });
 
